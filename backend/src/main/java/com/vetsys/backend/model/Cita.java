@@ -1,6 +1,7 @@
 package com.vetsys.backend.model;
 
-import com.vetsys.backend.enums.EstadoCita; // Importamos el Enum
+import com.vetsys.backend.enums.EstadoCita;
+import com.vetsys.backend.pattern.state.*;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,22 +27,32 @@ public class Cita {
 
     private String motivo;
 
-    // Usamos el ENUM. En la BD se guardará como texto ("PROGRAMADA")
     @Enumerated(EnumType.STRING)
     private EstadoCita estado;
 
-    // RELACIÓN 1: Mascota
+    // Relación con Mascota
     @ManyToOne
     @JoinColumn(name = "id_mascota", nullable = false)
     private Mascota mascota;
 
-    // RELACIÓN 2: Veterinario
+    // Relación con Veterinario
     @ManyToOne
     @JoinColumn(name = "id_veterinario", nullable = false)
     private Veterinario veterinario;
 
-    @PrePersist
-    public void prePersist() {
-        if(this.estado == null) this.estado = EstadoCita.PROGRAMADA;
+    // Implementación STATE
+    // Este método convierte el Enum (Dato) en una Clase Lógica (Comportamiento)
+    public CitaState obtenerComportamiento() {
+        switch (this.estado) {
+            case PROGRAMADA:
+                return new EstadoProgramada();
+            case REALIZADA:
+                return new EstadoRealizada();
+            case CANCELADA:
+                return new EstadoCancelada();
+            default:
+                // Por defecto asumimos programada o lanzamos error
+                return new EstadoProgramada();
+        }
     }
 }

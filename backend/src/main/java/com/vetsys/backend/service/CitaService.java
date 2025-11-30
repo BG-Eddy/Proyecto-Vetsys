@@ -21,28 +21,43 @@ public class CitaService {
     private final MascotaRepository mascotaRepository;
     private final VeterinarioRepository veterinarioRepository;
 
+    // Método 1: Agendar Cita (Creación estándar)
     public Cita agendarCita(CitaRegistroDTO dto) {
-        // 1. Validar Mascota
+        // Validar Mascota
         Mascota mascota = mascotaRepository.findById(dto.getIdMascota())
                 .orElseThrow(() -> new RuntimeException("Mascota no encontrada"));
 
-        // 2. Validar Veterinario
+        // Validar Veterinario
         Veterinario veterinario = veterinarioRepository.findById(dto.getIdVeterinario())
                 .orElseThrow(() -> new RuntimeException("Veterinario no encontrado"));
 
-        // 3. Construir la Cita
+        // Construir
         Cita cita = Cita.builder()
                 .fechaHora(dto.getFechaHora())
                 .motivo(dto.getMotivo())
                 .estado(EstadoCita.PROGRAMADA)
-                .mascota(mascota)        // Asignamos el objeto completo
-                .veterinario(veterinario) // Asignamos el objeto completo
+                .mascota(mascota)
+                .veterinario(veterinario)
                 .build();
 
         return citaRepository.save(cita);
     }
 
+    // Método 2: Listar todas
     public List<Cita> listarCitas() {
         return citaRepository.findAll();
+    }
+
+    // Método 3: Cancelar Cita (USANDO PATRÓN STATE)
+    public Cita cancelarCita(Long idCita) {
+        // 1. Buscar la cita
+        Cita cita = citaRepository.findById(idCita)
+                .orElseThrow(() -> new RuntimeException("Cita no encontrada con ID: " + idCita));
+
+        // 2. Delegar la lógica al estado actual
+        cita.obtenerComportamiento().cancelar(cita);
+
+        // 3. Guardar el cambio de estado
+        return citaRepository.save(cita);
     }
 }

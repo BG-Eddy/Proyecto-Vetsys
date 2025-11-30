@@ -15,13 +15,21 @@ public class CitaController {
 
     private final CitaService citaService;
 
+    // Crear Cita
     @PostMapping
     public Cita agendar(@RequestBody CitaRegistroDTO dto) {
         return citaService.agendarCita(dto);
     }
 
+    // Listar Citas
     @GetMapping
     public List<Cita> listar() {
         return citaService.listarCitas();
+    }
+
+    // Cancelar Cita
+    @PutMapping("/{id}/cancelar")
+    public Cita cancelarCita(@PathVariable Long id) {
+        return citaService.cancelarCita(id);
     }
 }
