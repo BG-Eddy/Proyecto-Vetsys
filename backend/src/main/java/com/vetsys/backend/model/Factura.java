@@ -1,5 +1,6 @@
 package com.vetsys.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,28 +17,28 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Factura {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long idFactura;
+
+    private LocalDateTime fechaFactura;
+    private BigDecimal total;
 
     @ManyToOne
     @JoinColumn(name = "id_propietario", nullable = false)
     private Propietario propietario;
 
     @OneToOne
-    @JoinColumn(name = "id_cita", nullable = true)
+    @JoinColumn(name = "id_cita")
     private Cita cita;
 
-    private LocalDateTime fechaEmision;
-    private BigDecimal total;
-    private String estado;
 
-    @OneToMany(mappedBy = "factura", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "factura", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<DetalleFactura> detalles;
 
     @PrePersist
     public void prePersist() {
-        this.fechaEmision = LocalDateTime.now();
-        if(this.estado == null) this.estado = "PENDIENTE";
+        this.fechaFactura = LocalDateTime.now();
     }
 }

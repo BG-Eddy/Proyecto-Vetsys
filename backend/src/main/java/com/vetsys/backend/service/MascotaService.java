@@ -15,30 +15,54 @@ import java.util.List;
 public class MascotaService {
 
     private final MascotaRepository mascotaRepository;
-    private final PropietarioRepository propietarioRepository; // Inyectamos el repositorio de dueños
+    private final PropietarioRepository propietarioRepository;
+
+    public List<Mascota> listarTodas() {
+        return mascotaRepository.findAll();
+    }
 
     public Mascota registrarMascota(MascotaRegistroDTO dto) {
-
-        // 1. Buscamos al Propietario usando el ID que viene en el DTO
+        // Ya no necesitamos Long.valueOf() porque en el DTO es Long
         Propietario propietario = propietarioRepository.findById(dto.getIdPropietario())
                 .orElseThrow(() -> new RuntimeException("El propietario no existe"));
 
-        // 2. Convertimos (Mapeamos) DTO -> Entidad
-        // Usamos el Builder para crear la Mascota limpia
         Mascota mascota = Mascota.builder()
                 .nombre(dto.getNombre())
                 .especie(dto.getEspecie())
                 .raza(dto.getRaza())
                 .sexo(dto.getSexo())
                 .fechaNacimiento(dto.getFechaNacimiento())
-                .propietario(propietario) // Asignamos el objeto propietario encontrado
+                .propietario(propietario)
+                .estado("ACTIVO") // Aseguramos estado
                 .build();
 
-        // 3. Guardamos la entidad real en la BD
         return mascotaRepository.save(mascota);
     }
 
-    public List<Mascota> listarTodas() {
-        return mascotaRepository.findAll();
+    public Mascota buscarPorId(Long id) {
+        return mascotaRepository.findById(id).orElse(null);
+    }
+
+    public Mascota actualizarMascota(Long id, MascotaRegistroDTO dto) {
+        Mascota mascota = mascotaRepository.findById(id).orElse(null);
+        if (mascota != null) {
+            mascota.setNombre(dto.getNombre());
+            mascota.setEspecie(dto.getEspecie());
+            mascota.setRaza(dto.getRaza());
+            mascota.setSexo(dto.getSexo());
+            mascota.setFechaNacimiento(dto.getFechaNacimiento());
+
+            if (dto.getIdPropietario() != null) {
+                Propietario nuevoPropietario = propietarioRepository.findById(dto.getIdPropietario())
+                        .orElseThrow(() -> new RuntimeException("Propietario no encontrado"));
+                mascota.setPropietario(nuevoPropietario);
+            }
+            return mascotaRepository.save(mascota);
+        }
+        return null;
+    }
+
+    public void eliminarMascota(Long id) {
+        mascotaRepository.deleteById(id);
     }
 }

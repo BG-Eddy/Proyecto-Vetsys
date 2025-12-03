@@ -24,4 +24,18 @@ public class MascotaController {
     public List<Mascota> listarMascotas() {
         return mascotaService.listarTodas();
     }
+    @GetMapping("/{id}")
+    public Mascota buscarUna(@PathVariable Long id) {
+        return mascotaService.buscarPorId(id);
+    }
+
+    @PutMapping("/{id}")
+    public Mascota actualizar(@PathVariable Long id, @RequestBody MascotaRegistroDTO dto) {
+        return mascotaService.actualizarMascota(id, dto);
+    }
+
+    @DeleteMapping("/{id}")
+    public void eliminar(@PathVariable Long id) {
+        mascotaService.eliminarMascota(id);
+    }
 }

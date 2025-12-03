@@ -5,5 +5,6 @@ public enum EstadoCita {
     CANCELADA,
     REALIZADA,
     EN_PROCESO,
-    EMERGENCIA
+    EMERGENCIA,
+    PENDIENTE  // <--- ¡AGREGA ESTO!
 }

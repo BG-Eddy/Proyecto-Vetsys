@@ -8,7 +8,7 @@ import com.vetsys.backend.repository.CitaRepository;
 import com.vetsys.backend.repository.HistorialClinicoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional; // Importante para asegurar que ambas cosas pasen
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -19,19 +19,15 @@ public class HistorialService {
     private final HistorialClinicoRepository historialRepository;
     private final CitaRepository citaRepository;
 
-    @Transactional // Si falla algo, deshace todo (Rollback)
+    @Transactional
     public HistorialClinico registrarAtencion(HistorialRegistroDTO dto) {
-
-        // 1. Buscar la Cita
         Cita cita = citaRepository.findById(dto.getIdCita())
                 .orElseThrow(() -> new RuntimeException("Cita no encontrada"));
 
-        // 2. Verificar que la cita no tenga historial ya (Opcional, pero recomendado)
         if (historialRepository.findByCita_IdCita(dto.getIdCita()).isPresent()) {
             throw new RuntimeException("Esta cita ya tiene un historial registrado");
         }
 
-        // 3. Crear el Historial
         HistorialClinico historial = HistorialClinico.builder()
                 .cita(cita)
                 .diagnostico(dto.getDiagnostico())
@@ -40,18 +36,15 @@ public class HistorialService {
                 .proximoControl(dto.getProximoControl())
                 .build();
 
-        // 4. ACTUALIZAR ESTADO DE LA CITA
-        cita.setEstado(EstadoCita.REALIZADA);
-        citaRepository.save(cita); // Guardamos la actualización de la cita
 
-        // 5. Guardar y retornar el historial
+        cita.setEstado(EstadoCita.REALIZADA);
+        citaRepository.save(cita);
+
         return historialRepository.save(historial);
     }
 
-    // Ver historial específico de una mascota (Futuro)
     public List<HistorialClinico> buscarPorMascota(Long idMascota) {
-        // Esto requeriría una query personalizada en el repositorio,
-        // por ahora dejémoslo pendiente o usa findAll()
+        // Devuelve todo el historial por ahora
         return historialRepository.findAll();
     }
 }

@@ -1,13 +1,15 @@
 package com.vetsys.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // Importante
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString; // Importante
 
 import java.time.LocalDateTime;
-import java.util.List; // Importante para la lista
+import java.util.List;
 
 @Entity
 @Table(name = "propietarios")
@@ -36,15 +38,18 @@ public class Propietario {
 
     private String estado;
 
-    // --- LA RELACIÓN ---
-    // Un Propietario "tiene" muchas Mascotas.
-    // 'mappedBy' dice: "La dueña de la relación es la variable 'propietario' en la clase Mascota"
-    @OneToMany(mappedBy = "propietario", cascade = CascadeType.ALL)
+
+
+    @OneToMany(mappedBy = "propietario", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    // 1. Quitamos @JsonIgnore
+    // 2. Ponemos @JsonIgnoreProperties para romper el bucle DENTRO de la mascota
+    @JsonIgnoreProperties({"propietario", "citas", "hibernateLazyInitializer", "handler"})
+    @ToString.Exclude // Evita que la consola se sature si imprimes el objeto
     private List<Mascota> mascotas;
 
     @PrePersist
     public void prePersist() {
         this.fechaRegistro = LocalDateTime.now();
-        if(this.estado == null) this.estado = "ACTIVO";
+        if (this.estado == null) this.estado = "ACTIVO";
     }
 }

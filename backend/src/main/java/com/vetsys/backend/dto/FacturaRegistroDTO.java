@@ -5,7 +5,12 @@ import java.util.List;
 
 @Data
 public class FacturaRegistroDTO {
-    private Long idPropietario; // Quién paga
-    private Long idCita;        // Opcional: si viene de una cita
-    private List<DetalleFacturaDTO> items; // La lista de compras
+    // ID del propietario al que se le hace la factura
+    private Long idPropietario;
+
+    // Opcional: ID de la cita si la factura viene de una consulta
+    private Long idCita;
+
+    // Lista de items (servicios/productos) que se van a facturar
+    private List<DetalleFacturaDTO> items;
 }

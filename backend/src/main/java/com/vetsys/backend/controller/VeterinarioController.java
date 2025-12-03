@@ -14,21 +14,30 @@ public class VeterinarioController {
 
     private final VeterinarioService veterinarioService;
 
-    // POST: http://localhost:8080/api/veterinarios
     @PostMapping
     public Veterinario crear(@RequestBody Veterinario veterinario) {
         return veterinarioService.guardarVeterinario(veterinario);
     }
 
-    // GET: http://localhost:8080/api/veterinarios
     @GetMapping
     public List<Veterinario> listar() {
         return veterinarioService.listarTodos();
     }
 
-    // GET: http://localhost:8080/api/veterinarios/{id}
     @GetMapping("/{id}")
     public Veterinario buscarUno(@PathVariable Long id) {
         return veterinarioService.buscarPorId(id);
+    }
+
+    // --- NUEVO: PUT para editar ---
+    @PutMapping("/{id}")
+    public Veterinario actualizar(@PathVariable Long id, @RequestBody Veterinario veterinario) {
+        return veterinarioService.actualizarVeterinario(id, veterinario);
+    }
+
+    // --- NUEVO: DELETE para eliminar ---
+    @DeleteMapping("/{id}")
+    public void eliminar(@PathVariable Long id) {
+        veterinarioService.eliminarVeterinario(id);
     }
 }

@@ -13,24 +13,35 @@ public class VeterinarioService {
 
     private final VeterinarioRepository veterinarioRepository;
 
-    // Crear o Actualizar
     public Veterinario guardarVeterinario(Veterinario veterinario) {
         return veterinarioRepository.save(veterinario);
     }
 
-    // Listar todos
     public List<Veterinario> listarTodos() {
         return veterinarioRepository.findAll();
     }
 
-    // Buscar por ID (con manejo de error simple)
     public Veterinario buscarPorId(Long id) {
         return veterinarioRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Veterinario no encontrado con ID: " + id));
+                .orElseThrow(() -> new RuntimeException("Veterinario no encontrado"));
     }
 
-    // Listar solo los activos (usando el método custom del repo)
-    public List<Veterinario> listarActivos() {
-        return veterinarioRepository.findByEstado("ACTIVO");
+    // --- NUEVO: Actualizar ---
+    public Veterinario actualizarVeterinario(Long id, Veterinario veterinarioActualizado) {
+        Veterinario veterinario = buscarPorId(id);
+
+        veterinario.setNombre(veterinarioActualizado.getNombre());
+        veterinario.setApellido(veterinarioActualizado.getApellido());
+        veterinario.setTelefono(veterinarioActualizado.getTelefono());
+        veterinario.setEmail(veterinarioActualizado.getEmail());
+        veterinario.setEspecialidad(veterinarioActualizado.getEspecialidad());
+        veterinario.setEstado(veterinarioActualizado.getEstado()); // Para activar/inactivar
+
+        return veterinarioRepository.save(veterinario);
+    }
+
+    // --- NUEVO: Eliminar ---
+    public void eliminarVeterinario(Long id) {
+        veterinarioRepository.deleteById(id);
     }
 }

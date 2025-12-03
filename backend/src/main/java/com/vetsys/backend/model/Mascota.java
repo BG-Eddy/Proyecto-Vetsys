@@ -1,6 +1,6 @@
 package com.vetsys.backend.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // <--- IMPORTANTE
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,28 +10,30 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-@Entity // 1. Le dice a Spring: "Esto es una tabla en la base de datos"
-@Table(name = "mascotas") // 2. (Opcional) Define el nombre exacto de la tabla en MySQL
-@Data // 3. Lombok: Genera automáticamente Getters, Setters, toString, etc.
-@Builder // 4. Patrón Builder: Para crear objetos fácilmente
-@NoArgsConstructor // 5. Constructor vacío (Obligatorio para JPA)
-@AllArgsConstructor // 6. Constructor con todos los argumentos
+@Entity
+@Table(name = "mascotas")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Mascota {
 
-    @Id // Marca este campo como la Llave Primaria (PK)
-    @GeneratedValue(strategy = GenerationType.IDENTITY) // Auto-incrementable (1, 2, 3...)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long idMascota;
 
-    @ManyToOne // Muchas mascotas pertenecen a Un propietario
-    @JoinColumn(name = "id_propietario", nullable = false) // Crea la columna 'id_propietario' en la BD (Llave Foránea)
-    @JsonIgnore
+
+    @ManyToOne(fetch = FetchType.LAZY) // Recomendado Lazy
+    @JoinColumn(name = "id_propietario", nullable = false)
+
+    @JsonIgnoreProperties({"mascotas", "hibernateLazyInitializer", "handler"})
     private Propietario propietario;
 
-    @Column(nullable = false, length = 100) // Configuración de la columna
+    @Column(nullable = false, length = 100)
     private String nombre;
 
-    private String especie; // Ej: Perro, Gato
-    private String raza;    // Ej: Labrador
+    private String especie;
+    private String raza;
 
     private LocalDate fechaNacimiento;
 
@@ -39,13 +41,11 @@ public class Mascota {
     private LocalDateTime fechaRegistro;
 
     private String sexo;
+    private String estado;
 
-    private String estado; // Ej: Activo, Fallecido
-
-    // Este método se ejecuta justo antes de guardar en la BD por primera vez
     @PrePersist
     public void prePersist() {
         this.fechaRegistro = LocalDateTime.now();
-        if(this.estado == null) this.estado = "ACTIVO";
+        if (this.estado == null) this.estado = "ACTIVO";
     }
 }
