@@ -2,7 +2,7 @@
 <project version="4">
   <component name="Encoding">
     <file url="file://$PROJECT_DIR$/backend/src/main/java" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/backend/src/main/java/com/vetsys/backend/dto/MascotaRegistroDTO.java" charset="ISO-8859-1" />
-    <file url="file://$PROJECT_DIR$/backend/src/main/java/com/vetsys/backend/model/Mascota.java" charset="ISO-8859-1" />
+    <file url="file://$PROJECT_DIR$/backend/src/main/java/com/vetsys/backend/dto/MascotaRegistroDTO.java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/src/main/java/com/vetsys/backend/model/Mascota.java" charset="UTF-8" />
   </component>
 </project>

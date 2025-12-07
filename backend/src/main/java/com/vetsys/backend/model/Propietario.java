@@ -1,12 +1,12 @@
 package com.vetsys.backend.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // Importante
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.ToString; // Importante
+import lombok.ToString;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,6 +23,9 @@ public class Propietario {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long idPropietario;
 
+    @Column(nullable = false, unique = true, length = 20)
+    private String cedula;
+
     @Column(nullable = false)
     private String nombre;
 
@@ -38,13 +41,9 @@ public class Propietario {
 
     private String estado;
 
-
-
     @OneToMany(mappedBy = "propietario", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    // 1. Quitamos @JsonIgnore
-    // 2. Ponemos @JsonIgnoreProperties para romper el bucle DENTRO de la mascota
     @JsonIgnoreProperties({"propietario", "citas", "hibernateLazyInitializer", "handler"})
-    @ToString.Exclude // Evita que la consola se sature si imprimes el objeto
+    @ToString.Exclude
     private List<Mascota> mascotas;
 
     @PrePersist

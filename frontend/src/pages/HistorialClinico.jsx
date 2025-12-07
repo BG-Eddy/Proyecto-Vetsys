@@ -27,7 +27,7 @@ function HistorialClinico() {
   const cargarHistorial = async () => {
     try {
       const response = await fetch(API_URL_CITAS, {
-        headers: { "Authorization": authHeader } // <--- CABECERA AGREGADA
+        headers: { "Authorization": authHeader }
       });
       if (response.ok) {
           const data = await response.json();
@@ -50,6 +50,7 @@ function HistorialClinico() {
     if (authHeader) {
         cargarHistorial();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authHeader]);
 
   // --- 2. FILTRADO (Por Paciente, Dueño o Veterinario) ---
@@ -66,7 +67,7 @@ function HistorialClinico() {
     <Container maxWidth="xl" sx={{ mt: 4 }}>
       <Stack direction="row" alignItems="center" spacing={2} mb={3}>
         <AssignmentIcon color="primary" sx={{ fontSize: 40 }} />
-        <Typography variant="h4" color="text.secondary" fontWeight="bold">
+        <Typography variant="h4" color="primary" fontWeight="bold">
           Historial Clínico
         </Typography>
       </Stack>
@@ -93,10 +94,11 @@ function HistorialClinico() {
       <TableContainer component={Paper} elevation={2} sx={{ borderRadius: 2 }}>
         <Table sx={{ minWidth: 650 }}>
           {/* Encabezado Azul */}
-          <TableHead sx={{ bgcolor: '#1976d2' }}>
+          <TableHead sx={{ bgcolor: 'primary.main' }}>
             <TableRow>
               <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Fecha Atención</TableCell>
               <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Paciente</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Motivo</TableCell>
               <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Veterinario</TableCell>
               
               {/* --- COLUMNAS SEPARADAS --- */}
@@ -131,6 +133,11 @@ function HistorialClinico() {
                             Dueño: {item.mascota?.propietario?.nombre} {item.mascota?.propietario?.apellido}
                         </Typography>
                     </Stack>
+                  </TableCell>
+
+                  {/* MOTIVO */}
+                  <TableCell>
+                    <Typography variant="body2">{item.motivo}</Typography>
                   </TableCell>
 
                   {/* VETERINARIO */}

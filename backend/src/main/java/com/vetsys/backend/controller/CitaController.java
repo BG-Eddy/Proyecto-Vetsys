@@ -15,7 +15,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/citas")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173") // Ajusta esto a tu puerto de React
+@CrossOrigin(origins = "http://localhost:5173")
 public class CitaController {
 
     private final CitaService citaService;
@@ -38,31 +38,28 @@ public class CitaController {
         return citaService.cancelarCita(id);
     }
 
-    // 4. Finalizar Cita (ACTUALIZADO CON 3 CAMPOS SEPARADOS)
+    // 4. Finalizar Cita
     @PutMapping("/{id}/finalizar")
     public Cita finalizarCita(@PathVariable Long id, @RequestBody Map<String, String> payload) {
-        // Extraemos los datos de texto
         String observaciones = payload.get("observaciones");
         String tratamiento = payload.get("tratamiento");
 
-        // Extraemos y convertimos la fecha del próximo control
+        String motivoProximoControl = payload.get("motivoProximoControl");
+        String precioStr = payload.get("precio");
+        Double precioFinal = (precioStr != null && !precioStr.isEmpty()) ? Double.valueOf(precioStr) : 0.0;
+
         String fechaControlStr = payload.get("proximoControl");
         LocalDate proximoControl = null;
 
         if (fechaControlStr != null && !fechaControlStr.isEmpty()) {
             try {
-                // Parsea el string "YYYY-MM-DD" que viene del input type="date"
                 proximoControl = LocalDate.parse(fechaControlStr);
             } catch (DateTimeParseException e) {
-                System.err.println("Error al parsear la fecha de control: " + e.getMessage());
-                // Si la fecha viene mal, la dejamos en null para no romper el flujo
                 proximoControl = null;
             }
         }
 
-        // Llamamos al servicio con los 4 argumentos (id, obs, trat, fecha)
-        // Nota: Asegúrate de que tu CitaService.finalizarCita acepte (Long, String, String, LocalDate)
-        return citaService.finalizarCita(id, observaciones, tratamiento, proximoControl);
+        return citaService.finalizarCita(id, observaciones, tratamiento, proximoControl, precioFinal, motivoProximoControl);
     }
 
     // 5. Reprogramar Cita
@@ -74,5 +71,17 @@ public class CitaController {
         LocalDateTime nuevaFecha = LocalDateTime.parse(fechaStr);
 
         return citaService.reprogramarCita(id, nuevaFecha, motivo);
+    }
+
+    // 6. Eliminar Cita
+    @DeleteMapping("/{id}")
+    public void eliminar(@PathVariable Long id) {
+        citaService.eliminarCita(id);
+    }
+
+    // 7. Atención Directa
+    @PostMapping("/urgencia")
+    public Cita crearAtencionDirecta(@RequestBody com.vetsys.backend.dto.AtencionDirectaDTO dto) {
+        return citaService.crearAtencionDirecta(dto);
     }
 }

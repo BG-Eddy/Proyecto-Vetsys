@@ -19,7 +19,9 @@ import {
   Button,
   Box,
   Grid,
-  Divider
+  Divider,
+  TextField,
+  InputAdornment
 } from "@mui/material";
 
 // Iconos
@@ -30,34 +32,28 @@ import PetsIcon from '@mui/icons-material/Pets';
 import PrintIcon from '@mui/icons-material/Print';
 import MedicalInformationIcon from '@mui/icons-material/MedicalInformation';
 import PersonIcon from '@mui/icons-material/Person';
+import SearchIcon from '@mui/icons-material/Search';
 
-// --- 1. IMPORTAR EL CONTEXTO DE SEGURIDAD ---
 import { useAuth } from "../context/AuthContext";
+import { useLocation } from "react-router-dom";
 
 const API_URL = "http://localhost:8080/api/facturas";
 
 const FacturasList = () => {
-  // --- 2. OBTENER LA CREDENCIAL DEL CONTEXTO ---
   const { authHeader } = useAuth();
+  const location = useLocation();
 
   const [facturas, setFacturas] = useState([]);
+  const [filtro, setFiltro] = useState(location.state?.filtro || "");
   
   // Estados para el Modal
   const [openDetalle, setOpenDetalle] = useState(false);
   const [facturaSeleccionada, setFacturaSeleccionada] = useState(null);
 
-  // --- 3. CARGA DE DATOS (CON SEGURIDAD) ---
-  useEffect(() => {
-    // Solo ejecutamos si existe la credencial (authHeader)
-    if (authHeader) {
-        fetchFacturas();
-    }
-  }, [authHeader]); // Dependencia vital para recargar al loguearse
-
+  // --- 1. DEFINIR FUNCIÓN FETCH ANTES DEL USEEFFECT ---
   const fetchFacturas = async () => {
     try {
       const response = await fetch(API_URL, {
-        // --- 4. INYECTAR CABECERA DE AUTORIZACIÓN ---
         headers: { 
             "Authorization": authHeader,
             "Content-Type": "application/json"
@@ -70,14 +66,37 @@ const FacturasList = () => {
         data.sort((a, b) => new Date(b.fechaFactura) - new Date(a.fechaFactura));
         setFacturas(data);
       } else {
-        console.error("Error al cargar facturas: Acceso denegado o error de servidor");
+        console.error("Error al cargar facturas");
       }
     } catch (error) {
       console.error("Error de conexión:", error);
     }
   };
 
-  // --- 2. MANEJO DEL MODAL ---
+  useEffect(() => {
+    if (authHeader) {
+        fetchFacturas();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authHeader]);
+
+  useEffect(() => {
+    if (location.state?.filtro) {
+        setFiltro(location.state.filtro);
+    }
+  }, [location.state]);
+
+  // --- 2. FILTRADO ---
+  const facturasFiltradas = facturas.filter((f) => {
+      const texto = filtro.toLowerCase();
+      const id = f.idFactura.toString();
+      const cliente = `${f.propietario?.nombre} ${f.propietario?.apellido}`.toLowerCase();
+      const cedula = f.propietario?.cedula || ""; // Buscamos también por cédula
+      
+      return id.includes(texto) || cliente.includes(texto) || cedula.includes(texto);
+  });
+
+  // --- MANEJO DEL MODAL ---
   const handleOpenDetalle = (factura) => {
     setFacturaSeleccionada(factura);
     setOpenDetalle(true);
@@ -88,11 +107,10 @@ const FacturasList = () => {
     setFacturaSeleccionada(null);
   };
 
-  // --- 3. FUNCIÓN DE IMPRESIÓN (SIN TABLA DE ÍTEMS) ---
+  // --- 3. FUNCIÓN DE IMPRESIÓN ACTUALIZADA ---
   const imprimirFactura = () => {
     if (!facturaSeleccionada) return;
 
-    // Determinar nombre de mascota
     let nombreMascota = "No especificado";
     if (facturaSeleccionada.cita?.mascota) {
         nombreMascota = `${facturaSeleccionada.cita.mascota.nombre} (${facturaSeleccionada.cita.mascota.especie})`;
@@ -100,7 +118,6 @@ const FacturasList = () => {
         nombreMascota = facturaSeleccionada.detalles[0].mascota?.nombre || "Varios";
     }
 
-    // HTML condicional para los detalles médicos
     let detallesClinicosHTML = '';
     if (facturaSeleccionada.cita) {
         detallesClinicosHTML = `
@@ -112,8 +129,7 @@ const FacturasList = () => {
                         <td class="highlight">${nombreMascota}</td>
                     </tr>
                     <tr>
-                        <td class="label"><strong>TRATAMIENTO ("LO QUE SE LE HIZO"):</strong></td>
-                        <td>${facturaSeleccionada.cita.tratamiento || 'No registrado'}</td>
+                        <td class="label"><strong>TRATAMIENTO:</strong></td> <td>${facturaSeleccionada.cita.tratamiento || 'No registrado'}</td>
                     </tr>
                     <tr>
                         <td class="label"><strong>Motivo Consulta:</strong></td>
@@ -128,7 +144,6 @@ const FacturasList = () => {
         `;
     }
 
-    // Abrir ventana de impresión
     const ventanaImpresion = window.open('', 'PRINT', 'height=600,width=800');
 
     ventanaImpresion.document.write(`
@@ -137,31 +152,20 @@ const FacturasList = () => {
           <title>Factura #${facturaSeleccionada.idFactura}</title>
           <style>
             body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333; font-size: 14px; }
-            
-            /* Encabezado */
             .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #1976d2; padding-bottom: 15px; }
             .header h1 { margin: 0; color: #1976d2; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; }
             .header p { margin: 5px 0; color: #666; font-size: 12px; }
-
-            /* Grid de Info Cliente/Factura */
             .info-grid { display: flex; gap: 20px; margin-bottom: 25px; }
             .box { flex: 1; border: 1px solid #ddd; padding: 15px; border-radius: 5px; background: #fdfdfd; }
             .box h4 { margin-top: 0; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; color: #555; text-transform: uppercase; font-size: 12px; }
             .box p { margin: 4px 0; }
-
-            /* Sección Clínica */
             .section-box.clinical { margin-bottom: 25px; border: 1px solid #90caf9; background-color: #e3f2fd; padding: 15px; border-radius: 5px; }
             .clinical h3 { margin-top: 0; color: #1565c0; font-size: 14px; border-bottom: 1px solid #bbdefb; padding-bottom: 8px; margin-bottom: 10px; }
-            
             .info-table { width: 100%; border-collapse: collapse; }
             .info-table td { padding: 4px; vertical-align: top; }
             .info-table .label { width: 180px; font-weight: bold; color: #444; }
             .info-table .highlight { font-weight: bold; font-size: 15px; color: #000; }
-
-            /* Total */
             .total-section { text-align: right; margin-top: 40px; font-size: 26px; font-weight: bold; color: #2e7d32; border-top: 2px solid #eee; padding-top: 15px; }
-            
-            /* Footer */
             .footer { margin-top: 50px; text-align: center; font-size: 11px; color: #999; border-top: 1px solid #eee; padding-top: 15px; }
           </style>
         </head>
@@ -175,7 +179,7 @@ const FacturasList = () => {
             <div class="box">
               <h4>Cliente (Propietario)</h4>
               <p><strong>Nombre:</strong> ${facturaSeleccionada.propietario?.nombre} ${facturaSeleccionada.propietario?.apellido}</p>
-              <p><strong>Email:</strong> ${facturaSeleccionada.propietario?.email || 'N/A'}</p>
+              <p><strong>Cédula:</strong> ${facturaSeleccionada.propietario?.cedula || 'N/A'}</p> <p><strong>Email:</strong> ${facturaSeleccionada.propietario?.email || 'N/A'}</p>
             </div>
             <div class="box">
               <h4>Datos del Comprobante</h4>
@@ -206,9 +210,24 @@ const FacturasList = () => {
     }, 500);
   };
 
+  const getOrigenEtiqueta = (cita) => {
+      // Si no hay cita asociada, es una venta de mostrador
+      if (!cita) return <Chip label="Venta Directa" color="default" size="small" variant="outlined"/>;
+      
+      const motivo = cita.motivo?.toUpperCase() || "";
+      
+      // Lógica de detección por palabras clave
+      if (motivo.includes("CONTROL")) {
+          return <Chip label="Control / Seguimiento" color="info" size="small" variant="outlined"/>;
+      } else if (motivo.includes("URGENCIA") || motivo.includes("INMEDIATA") || motivo.includes("EMERGENCIA")) {
+          return <Chip label="Urgencia" color="error" size="small" variant="outlined"/>;
+      } else {
+          return <Chip label="Consulta General" color="primary" size="small" variant="outlined"/>;
+      }
+  };
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4 }}>
-      {/* Título Principal */}
       <Stack direction="row" alignItems="center" spacing={2} mb={3}>
         <ReceiptIcon color="primary" sx={{ fontSize: 40 }} />
         <Typography variant="h4" component="h1" fontWeight="bold">
@@ -216,14 +235,32 @@ const FacturasList = () => {
         </Typography>
       </Stack>
 
-      {/* TABLA PRINCIPAL DE FACTURAS */}
+      {/* --- BARRA DE BÚSQUEDA --- */}
+      <Paper sx={{ p: 2, mb: 3 }} elevation={0} variant="outlined">
+        <TextField
+          fullWidth
+          variant="outlined"
+          placeholder="Buscar por N° Factura, Cédula o Nombre del Cliente..."
+          value={filtro}
+          onChange={(e) => setFiltro(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon color="action" />
+              </InputAdornment>
+            ),
+          }}
+        />
+      </Paper>
+
       <TableContainer component={Paper} elevation={2} sx={{ borderRadius: 2 }}>
         <Table>
-          <TableHead sx={{ bgcolor: '#1976d2' }}>
+          <TableHead sx={{ bgcolor: 'primary.main' }}>
             <TableRow>
               <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>N°</TableCell>
               <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Fecha</TableCell>
               <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Cliente</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Cédula</TableCell> {/* NUEVA COLUMNA */}
               <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Mascota Ref.</TableCell>
               <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Origen</TableCell>
               <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Total</TableCell>
@@ -231,14 +268,15 @@ const FacturasList = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {facturas.length > 0 ? (
-              facturas.map((factura) => (
+            {facturasFiltradas.length > 0 ? (
+              facturasFiltradas.map((factura) => (
                 <TableRow key={factura.idFactura} hover>
                   <TableCell>#{factura.idFactura}</TableCell>
                   <TableCell>{new Date(factura.fechaFactura).toLocaleDateString()}</TableCell>
                   <TableCell>
                     {factura.propietario?.nombre} {factura.propietario?.apellido}
                   </TableCell>
+                  <TableCell>{factura.propietario?.cedula || "N/A"}</TableCell>
                   <TableCell>
                      <Stack direction="row" alignItems="center" spacing={1}>
                         <PetsIcon fontSize="small" color="action"/>
@@ -247,12 +285,8 @@ const FacturasList = () => {
                         </Typography>
                      </Stack>
                   </TableCell>
-                  <TableCell>
-                    {factura.cita ? (
-                        <Chip label="Consulta Médica" color="primary" size="small" variant="outlined"/>
-                    ) : (
-                        <Chip label="Venta Directa" color="default" size="small" variant="outlined"/>
-                    )}
+                  <TableCell aling="center">
+                    {getOrigenEtiqueta(factura.cita)}
                   </TableCell>
                   <TableCell>
                     <Typography fontWeight="bold" color="success.main">
@@ -268,8 +302,8 @@ const FacturasList = () => {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
-                  No hay facturas registradas.
+                <TableCell colSpan={8} align="center" sx={{ py: 3 }}>
+                  No se encontraron facturas.
                 </TableCell>
               </TableRow>
             )}
@@ -277,11 +311,10 @@ const FacturasList = () => {
         </Table>
       </TableContainer>
 
-      {/* --- MODAL DE DETALLE (POPUP) --- */}
+      {/* --- MODAL DE DETALLE --- */}
       <Dialog open={openDetalle} onClose={handleCloseDetalle} maxWidth="md" fullWidth>
         {facturaSeleccionada && (
             <>
-                {/* Encabezado del Modal */}
                 <DialogTitle sx={{ bgcolor: '#f5f5f5', borderBottom: '1px solid #ddd' }}>
                     <Stack direction="row" justifyContent="space-between" alignItems="center">
                         <Stack direction="row" alignItems="center" spacing={1}>
@@ -296,21 +329,35 @@ const FacturasList = () => {
                 
                 <DialogContent sx={{ mt: 2 }}>
                     
-                    {/* 1. SECCIÓN DATOS CLIENTE */}
+                    {/* DATOS CLIENTE */}
                     <Box mb={2} p={2} sx={{ bgcolor: '#fff', border: '1px solid #eee', borderRadius: 2 }}>
                         <Stack direction="row" alignItems="center" spacing={1} mb={1}>
                             <PersonIcon color="action"/>
                             <Typography variant="subtitle2" fontWeight="bold">DATOS DEL CLIENTE</Typography>
                         </Stack>
-                        <Typography variant="body1">
-                            {facturaSeleccionada.propietario?.nombre} {facturaSeleccionada.propietario?.apellido}
-                        </Typography>
-                        <Typography variant="body2" color="textSecondary">
-                            {facturaSeleccionada.propietario?.email || "Sin email registrado"}
-                        </Typography>
+                        <Grid container spacing={2}>
+                            <Grid item xs={6}>
+                                <Typography variant="caption" color="textSecondary">Nombre:</Typography>
+                                <Typography variant="body1">
+                                    {facturaSeleccionada.propietario?.nombre} {facturaSeleccionada.propietario?.apellido}
+                                </Typography>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <Typography variant="caption" color="textSecondary">Cédula:</Typography>
+                                <Typography variant="body1">
+                                    {facturaSeleccionada.propietario?.cedula || "N/A"}
+                                </Typography>
+                            </Grid>
+                            <Grid item xs={12}>
+                                <Typography variant="caption" color="textSecondary">Email:</Typography>
+                                <Typography variant="body2">
+                                    {facturaSeleccionada.propietario?.email || "Sin email registrado"}
+                                </Typography>
+                            </Grid>
+                        </Grid>
                     </Box>
 
-                    {/* 2. SECCIÓN INFO CLÍNICA (Si existe cita asociada) */}
+                    {/* INFO CLÍNICA */}
                     {facturaSeleccionada.cita && (
                         <Box mb={3} p={2} sx={{ bgcolor: '#e3f2fd', borderRadius: 2, border: '1px solid #90caf9' }}>
                             <Stack direction="row" alignItems="center" spacing={1} mb={1}>
@@ -329,7 +376,7 @@ const FacturasList = () => {
                                     </Typography>
                                 </Grid>
                                 <Grid item xs={12}>
-                                    <Typography variant="caption" color="textSecondary">TRATAMIENTO ("LO QUE SE LE HIZO"):</Typography>
+                                    <Typography variant="caption" color="textSecondary">TRATAMIENTO:</Typography> {/* TEXTO CORREGIDO */}
                                     <Paper elevation={0} sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.7)', mt: 0.5, border:'1px solid #bbdefb' }}>
                                         <Typography variant="body1" fontWeight="medium">
                                             {facturaSeleccionada.cita.tratamiento || "No especificado"}
@@ -348,9 +395,7 @@ const FacturasList = () => {
                         </Box>
                     )}
 
-                  
-
-                    {/* 4. TOTAL FINAL */}
+                    {/* TOTAL */}
                     <Stack direction="row" justifyContent="flex-end" alignItems="center" spacing={2} mt={3}>
                         <Typography variant="h6" color="textSecondary">TOTAL PAGADO:</Typography>
                         <Stack direction="row" alignItems="center">
@@ -363,7 +408,6 @@ const FacturasList = () => {
 
                 </DialogContent>
                 
-                {/* Botones de Acción */}
                 <DialogActions sx={{ p: 2 }}>
                     <Button 
                         onClick={imprimirFactura} 

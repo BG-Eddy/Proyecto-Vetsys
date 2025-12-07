@@ -26,21 +26,20 @@ public class VeterinarioService {
                 .orElseThrow(() -> new RuntimeException("Veterinario no encontrado"));
     }
 
-    // --- NUEVO: Actualizar ---
     public Veterinario actualizarVeterinario(Long id, Veterinario veterinarioActualizado) {
         Veterinario veterinario = buscarPorId(id);
 
+        veterinario.setCedula(veterinarioActualizado.getCedula());
         veterinario.setNombre(veterinarioActualizado.getNombre());
         veterinario.setApellido(veterinarioActualizado.getApellido());
         veterinario.setTelefono(veterinarioActualizado.getTelefono());
         veterinario.setEmail(veterinarioActualizado.getEmail());
         veterinario.setEspecialidad(veterinarioActualizado.getEspecialidad());
-        veterinario.setEstado(veterinarioActualizado.getEstado()); // Para activar/inactivar
+        veterinario.setEstado(veterinarioActualizado.getEstado());
 
         return veterinarioRepository.save(veterinario);
     }
 
-    // --- NUEVO: Eliminar ---
     public void eliminarVeterinario(Long id) {
         veterinarioRepository.deleteById(id);
     }

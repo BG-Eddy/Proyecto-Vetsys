@@ -32,6 +32,7 @@ import MedicalServicesIcon from '@mui/icons-material/MedicalServices';
 import { useAuth } from "../context/AuthContext";
 
 const API_URL = "http://localhost:8080/api/veterinarios";
+const API_CITAS = "http://localhost:8080/api/citas"; // Necesario para el historial
 
 const VeterinariosList = () => {
   // --- 2. OBTENER TOKEN ---
@@ -46,6 +47,7 @@ const VeterinariosList = () => {
 
   const [formData, setFormData] = useState({
     idVeterinario: null,
+    cedula: "",
     nombre: "",
     apellido: "",
     telefono: "",
@@ -57,19 +59,11 @@ const VeterinariosList = () => {
   const [historialAtenciones, setHistorialAtenciones] = useState([]);
   const [selectedVetName, setSelectedVetName] = useState("");
 
-  // --- 3. EFECTO PROTEGIDO ---
-  useEffect(() => {
-    if (authHeader) {
-        fetchVeterinarios();
-    }
-  }, [authHeader]);
-
-  // --- FUNCIONES DE API ---
-
+  // --- FUNCIONES DEFINIDAS ANTES DEL EFFECT ---
   const fetchVeterinarios = async () => {
     try {
       const response = await fetch(API_URL, {
-        headers: { "Authorization": authHeader } // <--- CABECERA
+        headers: { "Authorization": authHeader } 
       });
       if (!response.ok) throw new Error("Error al cargar datos");
       const data = await response.json();
@@ -80,9 +74,17 @@ const VeterinariosList = () => {
     }
   };
 
+  useEffect(() => {
+    if (authHeader) {
+        fetchVeterinarios();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authHeader]);
+
+  // --- LOGICA DE GUARDADO ---
   const handleSave = async () => {
-    if (!formData.nombre || !formData.apellido || !formData.especialidad) {
-      mostrarMensaje("Nombre, Apellido y Especialidad son obligatorios", "warning");
+    if (!formData.cedula || !formData.nombre || !formData.apellido || !formData.especialidad) {
+      mostrarMensaje("Cédula, Nombre, Apellido y Especialidad son obligatorios", "warning");
       return;
     }
 
@@ -90,7 +92,7 @@ const VeterinariosList = () => {
       let response;
       const headers = { 
           "Content-Type": "application/json",
-          "Authorization": authHeader // <--- CABECERA
+          "Authorization": authHeader
       };
 
       if (isEditing) {
@@ -125,7 +127,7 @@ const VeterinariosList = () => {
       try {
         const response = await fetch(`${API_URL}/${id}`, {
           method: "DELETE",
-          headers: { "Authorization": authHeader } // <--- CABECERA
+          headers: { "Authorization": authHeader }
         });
 
         if (response.ok) {
@@ -150,7 +152,7 @@ const VeterinariosList = () => {
         method: "PUT",
         headers: { 
             "Content-Type": "application/json",
-            "Authorization": authHeader // <--- CABECERA
+            "Authorization": authHeader
         },
         body: JSON.stringify(vetActualizado),
       });
@@ -167,9 +169,28 @@ const VeterinariosList = () => {
     }
   };
 
-  const handleOpenHistory = (veterinario) => {
+  const handleOpenHistory = async (veterinario) => {
     setSelectedVetName(`${veterinario.nombre} ${veterinario.apellido}`);
-    setHistorialAtenciones([]); 
+    
+    try {
+        const response = await fetch(API_CITAS, {
+            headers: { "Authorization": authHeader }
+        });
+        if (response.ok) {
+            const todasLasCitas = await response.json();
+            // Filtramos: Que sean de este veterinario Y que ya estén realizadas
+            const atencionesDelVet = todasLasCitas.filter(c => 
+                c.veterinario?.idVeterinario === veterinario.idVeterinario && 
+                c.estado === 'REALIZADA'
+            );
+            // Ordenar por fecha reciente
+            atencionesDelVet.sort((a, b) => new Date(b.fechaHora) - new Date(a.fechaHora));
+            setHistorialAtenciones(atencionesDelVet);
+        }
+    } catch (error) {
+        console.error("Error cargando atenciones:", error);
+        setHistorialAtenciones([]);
+    }
     setOpenHistory(true);
   };
 
@@ -177,7 +198,7 @@ const VeterinariosList = () => {
 
   const handleOpenCreate = () => {
     setIsEditing(false);
-    setFormData({ idVeterinario: null, nombre: "", apellido: "", telefono: "", email: "", especialidad: "", estado: "ACTIVO" });
+    setFormData({ idVeterinario: null, cedula: "", nombre: "", apellido: "", telefono: "", email: "", especialidad: "", estado: "ACTIVO" });
     setOpenForm(true);
   };
 
@@ -213,13 +234,14 @@ const VeterinariosList = () => {
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
-            <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
-              <TableCell>ID</TableCell>
-              <TableCell>Nombre Completo</TableCell>
-              <TableCell>Especialidad</TableCell>
-              <TableCell>Contacto</TableCell>
-              <TableCell align="center">Estado</TableCell>
-              <TableCell align="center">Acciones</TableCell>
+            <TableRow sx={{ bgcolor: 'primary.main' }}>
+              <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>ID</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Cédula</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Nombre Completo</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Especialidad</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Contacto</TableCell>
+              <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Estado</TableCell>
+              <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Acciones</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -227,7 +249,8 @@ const VeterinariosList = () => {
               veterinarios.map((vet) => (
                 <TableRow key={vet.idVeterinario}>
                   <TableCell>{vet.idVeterinario}</TableCell>
-                  <TableCell>{vet.nombre} {vet.apellido}</TableCell>
+                  <TableCell>{vet.cedula}</TableCell> {/* Dato de Cédula */}
+                  <TableCell>{vet.nombre} {vet.apellido}</TableCell> {/* Dato de Nombre */}
                   <TableCell>
                     <Chip label={vet.especialidad} color="info" variant="outlined" size="small" />
                   </TableCell>
@@ -263,7 +286,7 @@ const VeterinariosList = () => {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} align="center">
+                <TableCell colSpan={7} align="center">
                   No hay veterinarios registrados.
                 </TableCell>
               </TableRow>
@@ -277,6 +300,7 @@ const VeterinariosList = () => {
         <DialogTitle>{isEditing ? "Editar Veterinario" : "Registrar Veterinario"}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1, minWidth: "350px" }}>
+            <TextField label="Cédula / Documento" name="cedula" value={formData.cedula} onChange={handleChange} fullWidth required autoFocus />
             <TextField label="Nombre" name="nombre" value={formData.nombre} onChange={handleChange} fullWidth required />
             <TextField label="Apellido" name="apellido" value={formData.apellido} onChange={handleChange} fullWidth required />
             <TextField label="Especialidad" name="especialidad" value={formData.especialidad} onChange={handleChange} fullWidth required placeholder="Ej: Cirugía, General" />
@@ -316,12 +340,14 @@ const VeterinariosList = () => {
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {historialAtenciones.map((atencion, index) => (
-                                <TableRow key={index}>
-                                    <TableCell>--</TableCell>
-                                    <TableCell>--</TableCell>
-                                    <TableCell>--</TableCell>
-                                    <TableCell>--</TableCell>
+                            {historialAtenciones.map((cita) => (
+                                <TableRow key={cita.idCita}>
+                                    <TableCell>
+                                        {new Date(cita.fechaHora).toLocaleDateString()}
+                                    </TableCell>
+                                    <TableCell>{cita.mascota?.nombre}</TableCell>
+                                    <TableCell>{cita.motivo}</TableCell>
+                                    <TableCell>{cita.observaciones || "Sin diagnóstico"}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>

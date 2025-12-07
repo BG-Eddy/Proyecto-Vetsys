@@ -3,7 +3,7 @@ import {
   Box, Grid, Typography, Paper, Button, Container, Stack, Divider 
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext'; // Ajusta la ruta si es necesario
+import { useAuth } from '../context/AuthContext';
 
 // Iconos
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
@@ -12,13 +12,22 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import MedicalInformationIcon from '@mui/icons-material/MedicalInformation';
+import LocalHospitalIcon from '@mui/icons-material/LocalHospital'; // Nuevo Icono para Urgencia
 
 const Home = () => {
   const navigate = useNavigate();
-  const { user } = useAuth(); // Para mostrar el nombre del usuario si quieres
+  useAuth();
 
   // Datos para las tarjetas de acceso rápido
   const menuItems = [
+    { 
+      title: 'Atención Directa', 
+      desc: 'Registro rápido de urgencias', 
+      icon: <LocalHospitalIcon sx={{ fontSize: 40 }} />, 
+      path: '/citas',
+      state: { openDirecta: true }, // <--- ESTA ES LA CLAVE: Enviamos una señal
+      color: '#d32f2f' // Rojo Urgencia
+    },
     { 
       title: 'Nueva Cita', 
       desc: 'Agendar consulta o control', 
@@ -76,7 +85,8 @@ const Home = () => {
           <Grid item xs={12} sm={6} md={4} key={index}>
             <Paper
               elevation={0}
-              onClick={() => navigate(item.path)}
+              // AQUI ACTUALIZAMOS LA NAVEGACIÓN PARA ACEPTAR EL STATE
+              onClick={() => navigate(item.path, { state: item.state })}
               sx={{
                 p: 3,
                 height: '100%',
@@ -105,7 +115,7 @@ const Home = () => {
                   width: 80, 
                   height: 80, 
                   borderRadius: '50%', 
-                  bgcolor: `${item.color}15`, // Color con 15% opacidad
+                  bgcolor: `${item.color}15`, 
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center',
@@ -125,7 +135,6 @@ const Home = () => {
                 </Typography>
               </Box>
 
-              {/* Flecha discreta al final */}
               <Box sx={{ mt: 'auto', pt: 2, opacity: 0.6 }}>
                  <ArrowForwardIcon sx={{ color: item.color }} />
               </Box>
@@ -135,9 +144,8 @@ const Home = () => {
         ))}
       </Grid>
 
-      {/* --- WIDGET INFORMATIVO RÁPIDO (Opcional) --- */}
+      {/* --- WIDGET INFORMATIVO RÁPIDO --- */}
       <Box sx={{ mt: 8, p: 4, bgcolor: '#1E3A5F', borderRadius: '24px', color: 'white', position: 'relative', overflow: 'hidden' }}>
-          {/* Círculos decorativos de fondo */}
           <Box sx={{ position: 'absolute', top: -50, right: -50, width: 200, height: 200, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.1)' }} />
           <Box sx={{ position: 'absolute', bottom: -30, left: 50, width: 100, height: 100, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.05)' }} />
           

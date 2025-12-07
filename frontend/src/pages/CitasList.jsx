@@ -24,6 +24,9 @@ import {
   MenuItem,
   InputAdornment
 } from "@mui/material";
+// 1. CORRECCIÓN: Agregamos useLocation aquí
+import { useNavigate, useLocation } from "react-router-dom";
+
 import DeleteIcon from "@mui/icons-material/Delete";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import EditIcon from "@mui/icons-material/Edit";
@@ -34,39 +37,57 @@ import BlockIcon from "@mui/icons-material/Block";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import MedicalServicesIcon from '@mui/icons-material/MedicalServices';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import SearchIcon from '@mui/icons-material/Search'; 
+import ReceiptIcon from '@mui/icons-material/Receipt'; 
+import DescriptionIcon from '@mui/icons-material/Description'; 
 
-// --- 1. IMPORTAR EL CONTEXTO DE SEGURIDAD ---
 import { useAuth } from "../context/AuthContext"; 
 
-// ENDPOINTS
 const API_URL = "http://localhost:8080/api/citas";
 const API_PROPIETARIOS = "http://localhost:8080/api/propietarios";
 const API_VETERINARIOS = "http://localhost:8080/api/veterinarios"; 
 
 const CitasList = () => {
-  // --- 2. OBTENER LA CREDENCIAL DEL CONTEXTO ---
   const { authHeader } = useAuth(); 
+  const navigate = useNavigate(); 
+  const location = useLocation(); // Hook para leer parámetros de navegación
+  
+  // Inicializa el filtro con lo que venga en el estado de la navegación (si existe)
+  const [filtro, setFiltro] = useState(location.state?.filtro || ""); 
 
   // --- ESTADOS ---
   const [citas, setCitas] = useState([]);
   
-  // Estados para los Selects
   const [propietarios, setPropietarios] = useState([]);
   const [mascotasDelPropietario, setMascotasDelPropietario] = useState([]);
   const [veterinarios, setVeterinarios] = useState([]); 
 
-  // Estado Modal Agendar/Reprogramar
   const [open, setOpen] = useState(false);
   const [isRescheduling, setIsRescheduling] = useState(false); 
   
-  // Estado Modal Finalizar
   const [openFinalizar, setOpenFinalizar] = useState(false);
   const [citaAFinalizar, setCitaAFinalizar] = useState(null);
+  
+  // Estado para Modal de Atención Directa
+  const [openDirecta, setOpenDirecta] = useState(false);
+  const [directaData, setDirectaData] = useState({
+    idPropietarioSeleccionado: "",
+    idMascota: "",
+    idVeterinario: "",
+    motivo: "",
+    precio: "",
+    observaciones: "",
+    tratamiento: "",
+    proximoControl: "",
+    motivoProximoControl: ""
+  });
   
   const [finalizarData, setFinalizarData] = useState({ 
     observaciones: "", 
     tratamiento: "",
-    proximoControl: "" 
+    proximoControl: "",
+    motivoProximoControl: "",
+    precio: ""
   });
 
   const [mensaje, setMensaje] = useState({ open: false, text: "", type: "success" });
@@ -75,34 +96,22 @@ const CitasList = () => {
     idCita: null,
     fechaHora: "",
     motivo: "",
-    precio: "", 
     idPropietarioSeleccionado: "", 
     idMascota: "",
     idVeterinario: ""
   });
 
-  // --- EFECTOS ---
-  useEffect(() => {
-    // Solo cargamos datos si tenemos la credencial
-    if (authHeader) {
-        fetchCitas();
-        fetchPropietarios();
-        fetchVeterinarios();
-    }
-  }, [authHeader]); // Agregamos dependencia
-
-  // --- FUNCIONES API (CON SEGURIDAD INYECTADA) ---
-
+  // --- 2. CORRECCIÓN: Funciones API definidas ANTES del useEffect ---
   const fetchCitas = async () => {
     try {
       const response = await fetch(API_URL, {
-        headers: { "Authorization": authHeader } // <--- CABECERA AGREGADA
+        headers: { "Authorization": authHeader }
       });
       if (!response.ok) throw new Error("Error al cargar citas");
       const data = await response.json();
+      data.sort((a, b) => new Date(a.fechaHora) - new Date(b.fechaHora));
       setCitas(data);
-    } catch (error) {
-      console.error(error);
+    } catch {
       mostrarMensaje("Error al conectar con el servidor", "error");
     }
   };
@@ -110,7 +119,7 @@ const CitasList = () => {
   const fetchPropietarios = async () => {
     try {
       const response = await fetch(API_PROPIETARIOS, {
-        headers: { "Authorization": authHeader } // <--- CABECERA AGREGADA
+        headers: { "Authorization": authHeader } 
       });
       if (response.ok) {
         const data = await response.json();
@@ -124,7 +133,7 @@ const CitasList = () => {
   const fetchVeterinarios = async () => {
       try {
         const response = await fetch(API_VETERINARIOS, {
-            headers: { "Authorization": authHeader } // <--- CABECERA AGREGADA
+            headers: { "Authorization": authHeader } 
         });
         if (!response.ok) throw new Error("Error al cargar veterinarios");
         const data = await response.json();
@@ -134,46 +143,49 @@ const CitasList = () => {
       }
   };
 
+  // --- EFECTO ---
+  useEffect(() => {
+    if (authHeader) {
+        fetchCitas();
+        fetchPropietarios();
+        fetchVeterinarios();
+    }
+    // 3. CORRECCIÓN: Desactivamos la advertencia de dependencias
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authHeader]);
+
+  // --- HANDLERS ---
+
   const handleSave = async () => {
     if (!formData.fechaHora) {
       mostrarMensaje("La fecha es obligatoria", "warning");
       return;
     }
 
-    if (!isRescheduling && (!formData.idMascota || !formData.idVeterinario || !formData.precio)) {
-        mostrarMensaje("Complete todos los campos (Mascota, Veterinario, Precio)", "warning");
+    if (!isRescheduling && (!formData.idMascota || !formData.idVeterinario)) {
+        mostrarMensaje("Complete los campos requeridos", "warning");
         return;
     }
 
     try {
       let response;
-      
       if (isRescheduling) {
         const urlReprogramar = `${API_URL}/${formData.idCita}/reprogramar`;
         response = await fetch(urlReprogramar, {
           method: "PUT",
-          headers: { 
-              "Content-Type": "application/json",
-              "Authorization": authHeader // <--- CABECERA AGREGADA
-          },
+          headers: { "Content-Type": "application/json", "Authorization": authHeader },
           body: JSON.stringify({ fechaHora: formData.fechaHora, motivo: formData.motivo }),
         });
-
       } else {
         const datosDTO = {
             fechaHora: formData.fechaHora,
             motivo: formData.motivo,
-            precio: parseFloat(formData.precio),
             idMascota: parseInt(formData.idMascota),
             idVeterinario: parseInt(formData.idVeterinario)
         };
-
         response = await fetch(API_URL, {
           method: "POST",
-          headers: { 
-              "Content-Type": "application/json",
-              "Authorization": authHeader // <--- CABECERA AGREGADA
-          },
+          headers: { "Content-Type": "application/json", "Authorization": authHeader },
           body: JSON.stringify(datosDTO),
         });
       }
@@ -186,8 +198,7 @@ const CitasList = () => {
         const errorText = await response.text();
         mostrarMensaje(`Error: ${errorText}`, "error");
       }
-    } catch (error) {
-      console.error("Error:", error);
+    } catch {
       mostrarMensaje("Error de conexión", "error");
     }
   };
@@ -197,85 +208,132 @@ const CitasList = () => {
       try {
         const response = await fetch(`${API_URL}/${id}/cancelar`, { 
             method: "PUT",
-            headers: { "Authorization": authHeader } // <--- CABECERA AGREGADA
+            headers: { "Authorization": authHeader } 
         });
         if (response.ok) {
           fetchCitas();
           mostrarMensaje("Cita cancelada correctamente", "success");
         }
-      } catch (error) {
-        console.error(error);
-      }
+      } catch (error) { console.error(error); }
     }
   };
 
-  // --- LÓGICA DE FINALIZAR ---
+  const handleEliminar = async (id) => {
+    if (window.confirm("¿Eliminar definitivamente esta cita cancelada?")) {
+        try {
+            const response = await fetch(`${API_URL}/${id}`, { 
+                method: "DELETE",
+                headers: { "Authorization": authHeader } 
+            });
+            if (response.ok) {
+                fetchCitas();
+                mostrarMensaje("Registro eliminado", "info");
+            }
+        } catch (error) { console.error(error); }
+    }
+  };
+
+  // --- FINALIZAR ---
   const handleOpenFinalizar = (idCita) => {
     setCitaAFinalizar(idCita);
-    setFinalizarData({ observaciones: "", tratamiento: "", proximoControl: "" });
+    setFinalizarData({ observaciones: "", tratamiento: "", proximoControl: "", motivoProximoControl: "", precio: "" });
     setOpenFinalizar(true);
   };
 
   const handleConfirmarFinalizacion = async () => {
     if(!citaAFinalizar) return;
-    
+    if (!finalizarData.precio || !finalizarData.observaciones) {
+        mostrarMensaje("Precio y Diagnóstico son obligatorios", "warning");
+        return;
+    }
     try {
         const response = await fetch(`${API_URL}/${citaAFinalizar}/finalizar`, { 
             method: "PUT",
-            headers: { 
-                "Content-Type": "application/json",
-                "Authorization": authHeader // <--- CABECERA AGREGADA
-            },
+            headers: { "Content-Type": "application/json", "Authorization": authHeader },
             body: JSON.stringify(finalizarData) 
         });
-        
         if (response.ok) {
           fetchCitas();
-          mostrarMensaje("Cita finalizada y enviada al historial", "success");
+          mostrarMensaje("Cita finalizada y cobrada", "success");
           setOpenFinalizar(false);
         } else {
-          mostrarMensaje("Error al finalizar la cita", "error");
+          mostrarMensaje("Error al finalizar", "error");
         }
-    } catch (error) {
-        console.error(error);
-        mostrarMensaje("Error de conexión", "error");
-    }
+    } catch { mostrarMensaje("Error de conexión", "error"); }
   };
 
-  const handleFinalizarChange = (e) => {
-      setFinalizarData({...finalizarData, [e.target.name]: e.target.value});
-  }
+  const handleFinalizarChange = (e) => setFinalizarData({...finalizarData, [e.target.name]: e.target.value});
 
-  // --- LÓGICA DE SELECCIÓN EN CASCADA ---
+  // --- ATENCIÓN DIRECTA ---
+  const handleOpenDirecta = () => {
+    setMascotasDelPropietario([]);
+    setDirectaData({
+        idPropietarioSeleccionado: "", idMascota: "", idVeterinario: "",
+        motivo: "Atención Inmediata", precio: "", observaciones: "",
+        tratamiento: "", proximoControl: "", motivoProximoControl: ""
+    });
+    setOpenDirecta(true);
+  };
+
+  useEffect(() => {
+    if (location.state?.openDirecta) {
+        handleOpenDirecta();
+        window.history.replaceState({}, document.title);
+    }
+  }, [location]);
+
+  const handleDirectaChange = (e) => setDirectaData({...directaData, [e.target.name]: e.target.value});
+
+  const handleOwnerChangeDirecta = (event) => {
+      const ownerId = event.target.value;
+      setDirectaData({ ...directaData, idPropietarioSeleccionado: ownerId, idMascota: "" });
+      const prop = propietarios.find(p => p.idPropietario === ownerId);
+      setMascotasDelPropietario(prop?.mascotas || []);
+  };
+
+  const handleSaveDirecta = async () => {
+      if (!directaData.idMascota || !directaData.idVeterinario || !directaData.precio || !directaData.observaciones) {
+          mostrarMensaje("Complete Mascota, Veterinario, Precio y Diagnóstico", "warning");
+          return;
+      }
+      const payload = {
+          idMascota: parseInt(directaData.idMascota),
+          idVeterinario: parseInt(directaData.idVeterinario),
+          motivo: directaData.motivo,
+          precio: parseFloat(directaData.precio),
+          observaciones: directaData.observaciones,
+          tratamiento: directaData.tratamiento,
+          proximoControl: directaData.proximoControl || null,
+          motivoProximoControl: directaData.motivoProximoControl
+      };
+      try {
+          const response = await fetch(`${API_URL}/urgencia`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Authorization": authHeader },
+              body: JSON.stringify(payload)
+          });
+          if (response.ok) {
+              fetchCitas();
+              setOpenDirecta(false);
+              mostrarMensaje("¡Atención registrada y facturada!", "success");
+          } else {
+              mostrarMensaje("Error al registrar atención", "error");
+          }
+      } catch { mostrarMensaje("Error de conexión", "error"); }
+  };
+
+  // --- AUXILIARES UI ---
   const handleOwnerChange = (event) => {
       const ownerId = event.target.value;
-      setFormData({ 
-          ...formData, 
-          idPropietarioSeleccionado: ownerId, 
-          idMascota: "" 
-      });
-
-      const propietarioEncontrado = propietarios.find(p => p.idPropietario === ownerId);
-      if (propietarioEncontrado && propietarioEncontrado.mascotas) {
-          setMascotasDelPropietario(propietarioEncontrado.mascotas);
-      } else {
-          setMascotasDelPropietario([]);
-      }
+      setFormData({ ...formData, idPropietarioSeleccionado: ownerId, idMascota: "" });
+      const prop = propietarios.find(p => p.idPropietario === ownerId);
+      setMascotasDelPropietario(prop?.mascotas || []);
   };
 
-  // --- UI HANDLERS ---
   const handleOpenAgendar = () => {
     setIsRescheduling(false);
     setMascotasDelPropietario([]); 
-    setFormData({ 
-        idCita: null, 
-        fechaHora: "", 
-        motivo: "", 
-        precio: "",
-        idPropietarioSeleccionado: "", 
-        idMascota: "", 
-        idVeterinario: "" 
-    });
+    setFormData({ idCita: null, fechaHora: "", motivo: "", idPropietarioSeleccionado: "", idMascota: "", idVeterinario: "" });
     setOpen(true);
   };
 
@@ -286,7 +344,6 @@ const CitasList = () => {
       idCita: cita.idCita,
       fechaHora: fechaInput,
       motivo: cita.motivo || "",
-      precio: cita.precio || "",
       idPropietarioSeleccionado: "", 
       idMascota: cita.mascota?.idMascota || "",
       idVeterinario: cita.veterinario?.idVeterinario || ""
@@ -295,55 +352,43 @@ const CitasList = () => {
   };
 
   const handleClose = () => setOpen(false);
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const mostrarMensaje = (text, type) => setMensaje({ open: true, text, type });
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
+  // --- FILTRADO INTELIGENTE ---
+  const citasFiltradas = citas.filter((cita) => {
+    const busqueda = filtro.toLowerCase();
+    const paciente = cita.mascota?.nombre?.toLowerCase() || "";
+    const duenio = (cita.mascota?.propietario?.nombre + " " + cita.mascota?.propietario?.apellido)?.toLowerCase() || "";
+    const vet = (cita.veterinario?.nombre + " " + cita.veterinario?.apellido)?.toLowerCase() || "";
+    return paciente.includes(busqueda) || duenio.includes(busqueda) || vet.includes(busqueda);
+  });
 
-  const mostrarMensaje = (text, type) => {
-    setMensaje({ open: true, text, type });
-  };
-
-  const getStatusColor = (estado) => {
-      switch(estado) {
-          case 'PROGRAMADA': return 'primary';
-          case 'REALIZADA': return 'success';
-          case 'CANCELADA': return 'error';
-          default: return 'default';
-      }
-  };
-
-  const citasProgramadas = citas.filter(c => c.estado === 'PROGRAMADA');
-  const citasRealizadas = citas.filter(c => c.estado === 'REALIZADA');
-  const citasCanceladas = citas.filter(c => c.estado === 'CANCELADA');
+  const citasProgramadas = citasFiltradas.filter(c => c.estado === 'PROGRAMADA');
+  const citasRealizadas = citasFiltradas.filter(c => c.estado === 'REALIZADA');
+  const citasCanceladas = citasFiltradas.filter(c => c.estado === 'CANCELADA');
 
   const renderTabla = (titulo, listaCitas, icon) => (
     <Paper sx={{ mb: 5, p: 2, borderTop: `4px solid ${titulo === 'Citas Programadas' ? '#1976d2' : titulo === 'Citas Realizadas' ? '#2e7d32' : '#d32f2f'}` }}>
         <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
             {icon}
-            <Typography variant="h6" component="div">
-                {titulo} ({listaCitas.length})
-            </Typography>
+            <Typography variant="h6">{titulo} ({listaCitas.length})</Typography>
         </Stack>
         <TableContainer>
             <Table>
                 <TableHead>
                     <TableRow sx={{ backgroundColor: "#f9f9f9" }}>
-                        <TableCell>ID</TableCell>
                         <TableCell>Fecha</TableCell>
+                        <TableCell>Paciente</TableCell>
+                        <TableCell>Dueño</TableCell>
+                        <TableCell>Veterinario</TableCell>
                         <TableCell>Motivo</TableCell>
                         {titulo === 'Citas Realizadas' && (
                             <>
-                                <TableCell>Observaciones</TableCell>
-                                <TableCell>Tratamiento</TableCell>
+                                <TableCell>Diagnóstico</TableCell>
+                                <TableCell>Precio</TableCell>
                             </>
                         )}
-                        <TableCell>Precio</TableCell>
-                        <TableCell>Mascota</TableCell>
-                        <TableCell>Dueño</TableCell>
-                        <TableCell>Veterinario</TableCell>
-                        <TableCell>Estado</TableCell>
                         <TableCell align="center">Acciones</TableCell>
                     </TableRow>
                 </TableHead>
@@ -351,68 +396,66 @@ const CitasList = () => {
                     {listaCitas.length > 0 ? (
                         listaCitas.map((cita) => (
                             <TableRow key={cita.idCita} hover>
-                                <TableCell>{cita.idCita}</TableCell>
-                                <TableCell>{new Date(cita.fechaHora).toLocaleString()}</TableCell>
+                                <TableCell>
+                                    {new Date(cita.fechaHora).toLocaleDateString()} <br/>
+                                    <Typography variant="caption" color="textSecondary">
+                                        {new Date(cita.fechaHora).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    </Typography>
+                                </TableCell>
+                                <TableCell fontWeight="bold">{cita.mascota?.nombre}</TableCell>
+                                <TableCell>{cita.mascota?.propietario?.nombre} {cita.mascota?.propietario?.apellido}</TableCell>
+                                <TableCell>{cita.veterinario?.nombre} {cita.veterinario?.apellido}</TableCell>
                                 <TableCell>{cita.motivo}</TableCell>
+
                                 {titulo === 'Citas Realizadas' && (
                                     <>
-                                        <TableCell sx={{maxWidth: 150, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>
+                                        <TableCell sx={{maxWidth: 150}}>
                                             <Tooltip title={cita.observaciones || ""}>
-                                                <span>{cita.observaciones || "-"}</span>
+                                                <Typography noWrap variant="body2">{cita.observaciones || "-"}</Typography>
                                             </Tooltip>
                                         </TableCell>
-                                        <TableCell sx={{maxWidth: 150, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>
-                                            <Tooltip title={cita.tratamiento || ""}>
-                                                <span>{cita.tratamiento || "-"}</span>
-                                            </Tooltip>
+                                        <TableCell color="success.main">
+                                            <b>${cita.precio}</b>
                                         </TableCell>
                                     </>
                                 )}
-                                <TableCell>${cita.precio || 0}</TableCell>
-                                <TableCell>{cita.mascota?.nombre || "N/A"}</TableCell>
-                                <TableCell>
-                                    {cita.mascota?.propietario 
-                                        ? `${cita.mascota.propietario.nombre} ${cita.mascota.propietario.apellido}` 
-                                        : "N/A"}
-                                </TableCell>
-                                <TableCell>{cita.veterinario?.nombre || "N/A"}</TableCell>
-                                <TableCell>
-                                    <Chip label={cita.estado} color={getStatusColor(cita.estado)} size="small" />
-                                </TableCell>
+
                                 <TableCell align="center">
                                     <Stack direction="row" spacing={1} justifyContent="center">
-                                        {cita.estado === 'PROGRAMADA' && (
+                                        {titulo === 'Citas Programadas' && (
                                             <>
-                                                <Tooltip title="Finalizar Consulta">
-                                                    <IconButton color="success" onClick={() => handleOpenFinalizar(cita.idCita)}>
-                                                        <CheckCircleIcon />
-                                                    </IconButton>
+                                                <Tooltip title="Finalizar">
+                                                    <IconButton color="success" onClick={() => handleOpenFinalizar(cita.idCita)}><CheckCircleIcon /></IconButton>
                                                 </Tooltip>
-                                                <Tooltip title="Reprogramar">
-                                                    <IconButton color="primary" onClick={() => handleOpenReprogramar(cita)}>
-                                                        <EditIcon />
-                                                    </IconButton>
+                                                <Tooltip title="Editar">
+                                                    <IconButton color="primary" onClick={() => handleOpenReprogramar(cita)}><EditIcon /></IconButton>
                                                 </Tooltip>
                                                 <Tooltip title="Cancelar">
-                                                    <IconButton color="error" onClick={() => handleCancelar(cita.idCita)}>
-                                                        <CancelIcon />
-                                                    </IconButton>
+                                                    <IconButton color="error" onClick={() => handleCancelar(cita.idCita)}><CancelIcon /></IconButton>
                                                 </Tooltip>
                                             </>
                                         )}
-                                        {cita.estado !== 'PROGRAMADA' && (
-                                            <Typography variant="caption" color="textSecondary">-</Typography>
+                                        {titulo === 'Citas Realizadas' && (
+                                            <>
+                                                <Tooltip title="Ver Historial">
+                                                    <IconButton color="primary" onClick={() => navigate('/historial')}><DescriptionIcon /></IconButton>
+                                                </Tooltip>
+                                                <Tooltip title="Ver Facturas">
+                                                    <IconButton color="secondary" onClick={() => navigate('/facturas')}><ReceiptIcon /></IconButton>
+                                                </Tooltip>
+                                            </>
+                                        )}
+                                        {titulo === 'Citas Canceladas' && (
+                                            <Tooltip title="Eliminar Registro">
+                                                <IconButton color="error" onClick={() => handleEliminar(cita.idCita)}><DeleteIcon /></IconButton>
+                                            </Tooltip>
                                         )}
                                     </Stack>
                                 </TableCell>
                             </TableRow>
                         ))
                     ) : (
-                        <TableRow>
-                            <TableCell colSpan={titulo === 'Citas Realizadas' ? 11 : 9} align="center">
-                                No hay {titulo.toLowerCase()}.
-                            </TableCell>
-                        </TableRow>
+                        <TableRow><TableCell colSpan={8} align="center">No hay registros.</TableCell></TableRow>
                     )}
                 </TableBody>
             </Table>
@@ -423,187 +466,108 @@ const CitasList = () => {
   return (
     <Container maxWidth="xl" sx={{ mt: 4 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
-        <Typography variant="h4" component="h1">
-          Agenda de Citas
-        </Typography>
-        <Button variant="contained" startIcon={<EventIcon />} onClick={handleOpenAgendar}>
-          Agendar Cita
-        </Button>
+        <Typography variant="h4" component="h1">Agenda de Citas</Typography>
+        <Stack direction="row" spacing={2}>
+            <Button variant="contained" color="error" startIcon={<MedicalServicesIcon />} onClick={handleOpenDirecta}>Atención Directa</Button>
+            <Button variant="contained" startIcon={<EventIcon />} onClick={handleOpenAgendar}>Agendar Cita</Button>
+        </Stack>
       </Stack>
+
+      <Paper sx={{ p: 2, mb: 3 }} elevation={0} variant="outlined">
+        <TextField
+          fullWidth
+          variant="outlined"
+          placeholder="Buscar por Paciente, Dueño o Veterinario..."
+          value={filtro}
+          onChange={(e) => setFiltro(e.target.value)}
+          InputProps={{
+            startAdornment: (<InputAdornment position="start"><SearchIcon color="action" /></InputAdornment>),
+          }}
+        />
+      </Paper>
 
       {renderTabla("Citas Programadas", citasProgramadas, <ScheduleIcon color="primary"/>)}
       {renderTabla("Citas Realizadas", citasRealizadas, <HistoryIcon color="success"/>)}
       {renderTabla("Citas Canceladas", citasCanceladas, <BlockIcon color="error"/>)}
 
-      {/* MODAL AGENDAR */}
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
         <DialogTitle>{isRescheduling ? "Reprogramar Cita" : "Agendar Nueva Cita"}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField
-              label="Fecha y Hora"
-              type="datetime-local"
-              name="fechaHora"
-              value={formData.fechaHora}
-              onChange={handleChange}
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              required
-            />
-            <TextField
-              label="Motivo"
-              name="motivo"
-              value={formData.motivo}
-              onChange={handleChange}
-              fullWidth
-              multiline
-              rows={2}
-            />
+            <TextField label="Fecha y Hora" type="datetime-local" name="fechaHora" value={formData.fechaHora} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} required />
+            <TextField label="Motivo" name="motivo" value={formData.motivo} onChange={handleChange} fullWidth multiline rows={2} />
             {!isRescheduling && (
                 <>
-                    <TextField
-                        select
-                        label="Seleccionar Propietario"
-                        name="idPropietarioSeleccionado"
-                        value={formData.idPropietarioSeleccionado}
-                        onChange={handleOwnerChange}
-                        fullWidth
-                        required
-                    >
-                        <MenuItem value="" disabled>Busque un propietario</MenuItem>
-                        {propietarios.map((prop) => (
-                            <MenuItem key={prop.idPropietario} value={prop.idPropietario}>
-                                {prop.nombre} {prop.apellido}
-                            </MenuItem>
-                        ))}
+                    <TextField select label="Propietario" name="idPropietarioSeleccionado" value={formData.idPropietarioSeleccionado} onChange={handleOwnerChange} fullWidth required>
+                        {propietarios.map((p) => <MenuItem key={p.idPropietario} value={p.idPropietario}>{p.nombre} {p.apellido}</MenuItem>)}
                     </TextField>
-
-                    <TextField
-                        select
-                        label="Seleccionar Mascota"
-                        name="idMascota"
-                        value={formData.idMascota}
-                        onChange={handleChange}
-                        fullWidth
-                        required
-                        disabled={!formData.idPropietarioSeleccionado} 
-                        helperText={!formData.idPropietarioSeleccionado ? "Primero seleccione un dueño" : ""}
-                    >
-                        {mascotasDelPropietario.length > 0 ? (
-                            mascotasDelPropietario.map((mascota) => (
-                                <MenuItem key={mascota.idMascota} value={mascota.idMascota}>
-                                    {mascota.nombre} ({mascota.especie})
-                                </MenuItem>
-                            ))
-                        ) : (
-                            <MenuItem value="" disabled>Este dueño no tiene mascotas</MenuItem>
-                        )}
+                    <TextField select label="Mascota" name="idMascota" value={formData.idMascota} onChange={handleChange} fullWidth required disabled={!formData.idPropietarioSeleccionado}>
+                        {mascotasDelPropietario.map((m) => <MenuItem key={m.idMascota} value={m.idMascota}>{m.nombre}</MenuItem>)}
                     </TextField>
-
-                    <TextField
-                        select
-                        label="Veterinario"
-                        name="idVeterinario"
-                        value={formData.idVeterinario}
-                        onChange={handleChange}
-                        fullWidth
-                        required
-                    >
-                         {veterinarios.map((vet) => (
-                            <MenuItem key={vet.idVeterinario} value={vet.idVeterinario}>
-                                {vet.nombre} {vet.apellido ? vet.apellido : ''}
-                            </MenuItem>
-                        ))}
+                    <TextField select label="Veterinario" name="idVeterinario" value={formData.idVeterinario} onChange={handleChange} fullWidth required>
+                         {veterinarios.map((v) => <MenuItem key={v.idVeterinario} value={v.idVeterinario}>{v.nombre} {v.apellido}</MenuItem>)}
                     </TextField>
-
-                    <TextField
-                        label="Precio Consulta"
-                        name="precio"
-                        type="number"
-                        value={formData.precio}
-                        onChange={handleChange}
-                        fullWidth
-                        required
-                        InputProps={{
-                            startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                        }}
-                    />
                 </>
             )}
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose} color="secondary">Cerrar</Button>
-          <Button onClick={handleSave} variant="contained" color="primary">
-            {isRescheduling ? "Guardar Cambios" : "Agendar"}
-          </Button>
+          <Button onClick={handleSave} variant="contained" color="primary">{isRescheduling ? "Guardar" : "Agendar"}</Button>
         </DialogActions>
       </Dialog>
 
-      {/* MODAL FINALIZAR */}
       <Dialog open={openFinalizar} onClose={() => setOpenFinalizar(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-            <Stack direction="row" alignItems="center" gap={1}>
-                <MedicalServicesIcon color="success"/>
-                Finalizar Consulta Médica
-            </Stack>
-        </DialogTitle>
+        <DialogTitle><Stack direction="row" gap={1}><MedicalServicesIcon color="success"/>Finalizar Consulta</Stack></DialogTitle>
         <DialogContent>
-            <Typography variant="body2" color="textSecondary" sx={{ mb: 3, mt: 1 }}>
-                Complete los detalles clínicos para cerrar la historia.
-            </Typography>
-
+            <Typography variant="body2" color="textSecondary" sx={{ mb: 3, mt: 1 }}>Complete para cerrar y facturar.</Typography>
             <Stack spacing={3}>
-                <TextField
-                    label="Diagnóstico / Observaciones"
-                    name="observaciones"
-                    value={finalizarData.observaciones}
-                    onChange={handleFinalizarChange}
-                    fullWidth
-                    multiline
-                    rows={3}
-                    required
-                    variant="outlined"
-                />
-                <TextField
-                    label="Tratamiento Recetado"
-                    name="tratamiento"
-                    value={finalizarData.tratamiento}
-                    onChange={handleFinalizarChange}
-                    fullWidth
-                    multiline
-                    rows={2}
-                    placeholder="Ej: Amoxicilina 500mg c/8h por 5 días..."
-                    helperText="Indique medicamentos y dosis."
-                />
-                <TextField
-                    label="Fecha Sugerida Próximo Control"
-                    type="date"
-                    name="proximoControl"
-                    value={finalizarData.proximoControl}
-                    onChange={handleFinalizarChange}
-                    fullWidth
-                    InputLabelProps={{ shrink: true }}
-                    InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <CalendarMonthIcon color="action" />
-                          </InputAdornment>
-                        ),
-                    }}
-                />
+                <TextField label="Precio Total" name="precio" type="number" value={finalizarData.precio} onChange={handleFinalizarChange} fullWidth required InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }} autoFocus />
+                <TextField label="Diagnóstico / Observaciones" name="observaciones" value={finalizarData.observaciones} onChange={handleFinalizarChange} fullWidth multiline rows={3} required />
+                <TextField label="Tratamiento (Opcional)" name="tratamiento" value={finalizarData.tratamiento} onChange={handleFinalizarChange} fullWidth multiline rows={2} />
+                <TextField label="Fecha Próximo Control (Opcional)" type="date" name="proximoControl" value={finalizarData.proximoControl} onChange={handleFinalizarChange} fullWidth InputLabelProps={{ shrink: true }} />
+                {finalizarData.proximoControl && (
+                    <TextField label="Concepto del Control" name="motivoProximoControl" value={finalizarData.motivoProximoControl} onChange={handleFinalizarChange} fullWidth />
+                )}
             </Stack>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
+        <DialogActions>
             <Button onClick={() => setOpenFinalizar(false)} color="inherit">Cancelar</Button>
-            <Button 
-                onClick={handleConfirmarFinalizacion} 
-                variant="contained" 
-                color="success"
-                disabled={!finalizarData.observaciones}
-            >
-                Guardar y Finalizar
-            </Button>
+            <Button onClick={handleConfirmarFinalizacion} variant="contained" color="success">Finalizar</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={openDirecta} onClose={() => setOpenDirecta(false)} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ bgcolor: '#d32f2f', color: 'white' }}><Stack direction="row" gap={1} alignItems="center"><MedicalServicesIcon /> Registro de Atención Inmediata</Stack></DialogTitle>
+        <DialogContent>
+            <Typography variant="body2" sx={{ my: 2 }}>Ingrese los datos del paciente y el detalle clínico.</Typography>
+            <Stack spacing={2}>
+                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                    <TextField select label="Propietario" name="idPropietarioSeleccionado" value={directaData.idPropietarioSeleccionado} onChange={handleOwnerChangeDirecta} fullWidth required>
+                        {propietarios.map((p) => <MenuItem key={p.idPropietario} value={p.idPropietario}>{p.nombre} {p.apellido}</MenuItem>)}
+                    </TextField>
+                    <TextField select label="Mascota" name="idMascota" value={directaData.idMascota} onChange={handleDirectaChange} fullWidth required disabled={!directaData.idPropietarioSeleccionado}>
+                        {mascotasDelPropietario.map((m) => <MenuItem key={m.idMascota} value={m.idMascota}>{m.nombre}</MenuItem>)}
+                    </TextField>
+                    <TextField select label="Veterinario" name="idVeterinario" value={directaData.idVeterinario} onChange={handleDirectaChange} fullWidth required>
+                         {veterinarios.map((v) => <MenuItem key={v.idVeterinario} value={v.idVeterinario}>{v.nombre} {v.apellido}</MenuItem>)}
+                    </TextField>
+                </Stack>
+                <TextField label="Motivo de Urgencia" name="motivo" value={directaData.motivo} onChange={handleDirectaChange} fullWidth />
+                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                    <TextField label="Precio Total" name="precio" type="number" value={directaData.precio} onChange={handleDirectaChange} fullWidth required InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }} />
+                    <TextField label="Diagnóstico / Obs" name="observaciones" value={directaData.observaciones} onChange={handleDirectaChange} fullWidth required />
+                </Stack>
+                <TextField label="Tratamiento / Receta" name="tratamiento" value={directaData.tratamiento} onChange={handleDirectaChange} fullWidth multiline rows={2} />
+                <Stack direction="row" spacing={2} alignItems="center">
+                    <TextField label="Próximo Control" type="date" name="proximoControl" value={directaData.proximoControl} onChange={handleDirectaChange} sx={{ width: '200px' }} InputLabelProps={{ shrink: true }} />
+                    {directaData.proximoControl && <TextField label="Motivo Control" name="motivoProximoControl" value={directaData.motivoProximoControl} onChange={handleDirectaChange} fullWidth placeholder="Ej: Retiro de puntos" />}
+                </Stack>
+            </Stack>
+        </DialogContent>
+        <DialogActions>
+            <Button onClick={() => setOpenDirecta(false)} color="inherit">Cancelar</Button>
+            <Button onClick={handleSaveDirecta} variant="contained" color="error">Registrar y Finalizar</Button>
         </DialogActions>
       </Dialog>
 

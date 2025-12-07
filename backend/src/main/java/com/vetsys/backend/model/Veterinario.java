@@ -18,6 +18,9 @@ public class Veterinario {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long idVeterinario;
 
+    @Column(nullable = false, unique = true, length = 20)
+    private String cedula;
+
     @Column(nullable = false)
     private String nombre;
 
@@ -28,11 +31,10 @@ public class Veterinario {
 
     private String email;
 
-    private String especialidad; // Ej: "Cirugía", "General", "Dermatología"
+    private String especialidad;
 
-    private String estado; // "ACTIVO", "INACTIVO"
+    private String estado;
 
-    // Antes de guardar por primera vez, asignamos estado ACTIVO si viene vacío
     @PrePersist
     public void prePersist() {
         if (this.estado == null) {
