@@ -1,31 +1,28 @@
-import React, { createContext, useState, useContext, useEffect } from "react";
+import React, { createContext, useState, useContext } from "react";
+
+// Usamos la variable de entorno
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 
 const AuthContext = createContext();
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [authHeader, setAuthHeader] = useState(null); // Aquí guardamos "Basic dXNlcjpwYXNz"
+  // CORRECCIÓN 1: Inicialización perezosa (Lazy Init)
+  // Lee el localStorage UNA sola vez al cargar, evitando el useEffect innecesario.
+  const [user, setUser] = useState(() => localStorage.getItem("user"));
+  const [authHeader, setAuthHeader] = useState(() => localStorage.getItem("authHeader"));
 
-  // Al cargar la app, revisamos si ya había iniciado sesión antes
-  useEffect(() => {
-    const savedAuth = localStorage.getItem("authHeader");
-    const savedUser = localStorage.getItem("user");
-    if (savedAuth && savedUser) {
-      setAuthHeader(savedAuth);
-      setUser(savedUser);
-    }
-  }, []);
+  // (El useEffect de inicialización ya no es necesario, lo borramos)
 
   const login = async (username, password) => {
-    // 1. Creamos la credencial encriptada en Base64
     const token = btoa(`${username}:${password}`);
     const header = `Basic ${token}`;
 
     try {
-      // 2. Probamos contra el backend para ver si es real
-      const response = await fetch("http://localhost:8080/api/login", {
+      // Petición al backend
+      const response = await fetch(`${API_URL}/login`, { 
         method: "GET",
         headers: {
           "Authorization": header
@@ -33,7 +30,6 @@ export const AuthProvider = ({ children }) => {
       });
 
       if (response.ok) {
-        // 3. Si es correcto, guardamos en el estado y en localStorage
         setUser(username);
         setAuthHeader(header);
         localStorage.setItem("authHeader", header);
@@ -43,7 +39,7 @@ export const AuthProvider = ({ children }) => {
         return false;
       }
     } catch (error) {
-      console.error("Error de conexión", error);
+      console.error("Error de conexión:", error);
       return false;
     }
   };
