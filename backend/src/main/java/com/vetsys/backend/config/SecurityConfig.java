@@ -1,8 +1,9 @@
 package com.vetsys.backend.config;
 
+import org.springframework.beans.factory.annotation.Value; // Importante para @Value
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer; // <--- Importante para .withDefaults()
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.userdetails.User;
@@ -14,52 +15,61 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays; // Importante para procesar la lista de URLs
 import java.util.List;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-    // 1. DEFINIMOS EL USUARIO Y CONTRASEÑA (EN MEMORIA)
+    // --- 1. INYECCIÓN DE VARIABLES DESDE APPLICATION.PROPERTIES ---
+
+    @Value("${vetsys.admin.username}")
+    private String adminUsername;
+
+    @Value("${vetsys.admin.password}")
+    private String adminPassword;
+
+    @Value("${vetsys.cors.allowed-origins}")
+    private String allowedOrigins; // Recibe un String, ej: "http://localhost:5173,https://mi-web.vercel.app"
+
+    // --- 2. DEFINICIÓN DEL USUARIO EN MEMORIA (DINÁMICO) ---
     @Bean
     public UserDetailsService userDetailsService() {
-        UserDetails user = User.withDefaultPasswordEncoder() // Solo para desarrollo
-                .username("admin")       // <--- TU USUARIO
-                .password("admin123")    // <--- TU CONTRASEÑA
+        UserDetails user = User.withDefaultPasswordEncoder()
+                .username(adminUsername) // <--- Usa el valor inyectado
+                .password(adminPassword) // <--- Usa el valor inyectado
                 .roles("ADMIN")
                 .build();
 
         return new InMemoryUserDetailsManager(user);
     }
 
-    // 2. CONFIGURAMOS EL FILTRO DE SEGURIDAD
+    // --- 3. FILTRO DE SEGURIDAD ---
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // Permite acceso libre a OPTIONS (necesario para React)
+                        // Permite pre-vuelo (OPTIONS) para que React pueda preguntar permisos antes de conectar
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
-                        // Todo lo demás requiere contraseña
+                        // Todo lo demás requiere autenticación
                         .anyRequest().authenticated()
                 )
-                // Activamos Autenticación Básica (ventana emergente o header Auth)
                 .httpBasic(Customizer.withDefaults());
 
         return http.build();
     }
 
-    // 3. CONFIGURACIÓN CORS (Mantenemos la que ya tenías)
+    // --- 4. CONFIGURACIÓN CORS (DINÁMICA) ---
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Tus puertos de React
-        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:5174"));
+        configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
 
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        // Importante: Authorization debe estar permitido (el * lo cubre, pero es bueno saberlo)
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
 
