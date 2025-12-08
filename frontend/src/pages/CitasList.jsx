@@ -43,9 +43,11 @@ import DescriptionIcon from '@mui/icons-material/Description';
 
 import { useAuth } from "../context/AuthContext"; 
 
-const API_URL = "http://localhost:8080/api/citas";
-const API_PROPIETARIOS = "http://localhost:8080/api/propietarios";
-const API_VETERINARIOS = "http://localhost:8080/api/veterinarios"; 
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
+
+const API_URL = `${BASE_URL}/citas`;
+const API_PROPIETARIOS = `${BASE_URL}/propietarios`;
+const API_VETERINARIOS = `${BASE_URL}/veterinarios`;
 
 const CitasList = () => {
   const { authHeader } = useAuth(); 

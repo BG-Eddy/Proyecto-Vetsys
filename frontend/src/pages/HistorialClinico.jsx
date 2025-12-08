@@ -14,7 +14,9 @@ import MedicalServicesIcon from '@mui/icons-material/MedicalServices';
 // 1. IMPORTAR CONTEXTO DE SEGURIDAD
 import { useAuth } from "../context/AuthContext";
 
-const API_URL_CITAS = "http://localhost:8080/api/citas";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
+
+const API_URL_CITAS = `${BASE_URL}/citas`;
 
 function HistorialClinico() {
   // 2. OBTENER TOKEN

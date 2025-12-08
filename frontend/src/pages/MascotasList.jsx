@@ -20,9 +20,11 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 // Endpoints
-const API_URL_MASCOTAS = "http://localhost:8080/api/mascotas";
-const API_URL_PROPIETARIOS = "http://localhost:8080/api/propietarios";
-const API_URL_CITAS = "http://localhost:8080/api/citas"; // Necesario para buscar citas
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
+
+const API_URL_MASCOTAS = `${BASE_URL}/mascotas`;
+const API_URL_PROPIETARIOS = `${BASE_URL}/propietarios`;
+const API_URL_CITAS = `${BASE_URL}/citas`;
 
 const MascotasList = () => {
   const { authHeader } = useAuth();

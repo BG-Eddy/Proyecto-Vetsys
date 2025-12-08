@@ -37,7 +37,9 @@ import SearchIcon from '@mui/icons-material/Search';
 import { useAuth } from "../context/AuthContext";
 import { useLocation } from "react-router-dom";
 
-const API_URL = "http://localhost:8080/api/facturas";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
+
+const API_URL = `${BASE_URL}/facturas`;
 
 const FacturasList = () => {
   const { authHeader } = useAuth();

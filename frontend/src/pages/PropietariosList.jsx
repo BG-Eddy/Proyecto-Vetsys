@@ -17,9 +17,11 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 // APIs
-const API_URL = "http://localhost:8080/api/propietarios";
-const API_MASCOTAS = "http://localhost:8080/api/mascotas";
-const API_FACTURAS = "http://localhost:8080/api/facturas";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
+
+const API_URL = `${BASE_URL}/propietarios`;
+const API_MASCOTAS = `${BASE_URL}/mascotas`;
+const API_FACTURAS = `${BASE_URL}/facturas`;
 
 const PropietarioList = () => {
   const { authHeader } = useAuth();

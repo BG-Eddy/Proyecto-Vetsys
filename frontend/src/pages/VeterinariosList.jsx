@@ -31,8 +31,10 @@ import MedicalServicesIcon from '@mui/icons-material/MedicalServices';
 // --- 1. IMPORTAR CONTEXTO DE SEGURIDAD ---
 import { useAuth } from "../context/AuthContext";
 
-const API_URL = "http://localhost:8080/api/veterinarios";
-const API_CITAS = "http://localhost:8080/api/citas"; // Necesario para el historial
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
+
+const API_URL = `${BASE_URL}/veterinarios`;
+const API_CITAS = `${BASE_URL}/citas`;
 
 const VeterinariosList = () => {
   // --- 2. OBTENER TOKEN ---
